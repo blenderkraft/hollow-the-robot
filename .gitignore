@@ -1,0 +1,14 @@
+bin/
+obj/
+.venv/
+__pycache__/
+*.user
+.vs/
+.idea/
+*.zip
+# Never commit Hollow Knight / Haiku game data or anything extracted from it
+knight/
+extracted/
+decomp/
+*.png
+!docs/**/*.png

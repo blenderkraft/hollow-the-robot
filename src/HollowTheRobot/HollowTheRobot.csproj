@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <AssemblyName>HollowTheRobot</AssemblyName>
+    <RootNamespace>HollowTheRobot</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <Version>0.1.0</Version>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- Path to the game install. Override with: dotnet build -p:HaikuDir="/path/to/Haiku the Robot" -->
+    <HaikuDir Condition="'$(HaikuDir)' == ''">$(HOME)/.local/share/Steam/steamapps/common/Haiku the Robot</HaikuDir>
+    <Managed>$(HaikuDir)/Haiku_Data/Managed</Managed>
+    <BepInExCore>$(HaikuDir)/BepInEx/core</BepInExCore>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="BepInEx" HintPath="$(BepInExCore)/BepInEx.dll" Private="false" />
+    <Reference Include="0Harmony" HintPath="$(BepInExCore)/0Harmony.dll" Private="false" />
+    <Reference Include="Assembly-CSharp" HintPath="$(Managed)/Assembly-CSharp.dll" Private="false" />
+    <Reference Include="Rewired_Core" HintPath="$(Managed)/Rewired_Core.dll" Private="false" />
+    <Reference Include="UnityEngine" HintPath="$(Managed)/UnityEngine.dll" Private="false" />
+    <Reference Include="UnityEngine.CoreModule" HintPath="$(Managed)/UnityEngine.CoreModule.dll" Private="false" />
+    <Reference Include="UnityEngine.IMGUIModule" HintPath="$(Managed)/UnityEngine.IMGUIModule.dll" Private="false" />
+    <Reference Include="UnityEngine.InputLegacyModule" HintPath="$(Managed)/UnityEngine.InputLegacyModule.dll" Private="false" />
+    <Reference Include="UnityEngine.Physics2DModule" HintPath="$(Managed)/UnityEngine.Physics2DModule.dll" Private="false" />
+    <Reference Include="UnityEngine.UI" HintPath="$(Managed)/UnityEngine.UI.dll" Private="false" />
+    <Reference Include="UnityEngine.UIModule" HintPath="$(Managed)/UnityEngine.UIModule.dll" Private="false" />
+    <Reference Include="Unity.TextMeshPro" HintPath="$(Managed)/Unity.TextMeshPro.dll" Private="false" />
+    <Reference Include="UnityEngine.TextRenderingModule" HintPath="$(Managed)/UnityEngine.TextRenderingModule.dll" Private="false" />
+    <Reference Include="UnityEngine.ImageConversionModule" HintPath="$(Managed)/UnityEngine.ImageConversionModule.dll" Private="false" />
+    <Reference Include="UnityEngine.JSONSerializeModule" HintPath="$(Managed)/UnityEngine.JSONSerializeModule.dll" Private="false" />
+    <Reference Include="UnityEngine.ParticleSystemModule" HintPath="$(Managed)/UnityEngine.ParticleSystemModule.dll" Private="false" />
+    <Reference Include="UnityEngine.AnimationModule" HintPath="$(Managed)/UnityEngine.AnimationModule.dll" Private="false" />
+  </ItemGroup>
+
+  <Target Name="DeployToGame" AfterTargets="Build" Condition="Exists('$(HaikuDir)/BepInEx')">
+    <MakeDir Directories="$(HaikuDir)/BepInEx/plugins/HollowTheRobot" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(HaikuDir)/BepInEx/plugins/HollowTheRobot" />
+    <Message Importance="high" Text="Deployed $(TargetFileName) -> $(HaikuDir)/BepInEx/plugins/HollowTheRobot" />
+  </Target>
+
+</Project>
