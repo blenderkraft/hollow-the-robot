@@ -40,3 +40,20 @@ with Hollow Knight abilities layered on.
 ## Restore
 - Saves backup: ~/.universal-modder/backups/haiku-saves-htr/ (`um backup restore`).
 - Uninstall: delete BepInEx/plugins/HollowTheRobot.
+
+## Verified in game (2026-10-09, autopilot run, screenshots read)
+- Knight renders at ~25 px, correct facing, runs/jumps/airborne/land, slash + up-slash arcs, Vengeful Spirit
+  (face leads), Howling Wraiths, Desolate Dive (fall + blast), Focus (+additive glow), Great Slash, Cyclone
+  (looping whoosh), Shade Cloak visuals on blink, Monarch Wings double jump. No exceptions in the log.
+- NOT yet verified: damage to enemies and Soul gain from real enemies (start room has none).
+
+## Gotchas
+1. Haiku's build strips Unity's ImageConversion (Texture2D.LoadImage → NRE) and JsonUtility (FromJson → null),
+   and the PNG encoder. Use LoadRawTextureData, a text format, and ReadPixels → raw dump.
+2. Coroutines resume after Update: a fake "button down" set there must survive until the next frame's Update.
+3. Steam ignores -applaunch while a previous instance is still running — check the PID before relaunching.
+4. Fx.Spawn auto-destroys looping clips after one cycle unless `persistent`.
+5. Some HK effects (Focus Effect) are additive in HK; the extractor turns them into white-with-luminance-alpha.
+6. Copying 001.haiku to 003.haiku opens the game-mode picker in SelectSaveFile; the autopilot sets
+   GameManager.saveFilePath and calls StartNewGame("normal") directly.
+7. Hyprland on this machine uses the Lua config: `hyprctl keyword windowrulev2` is rejected.

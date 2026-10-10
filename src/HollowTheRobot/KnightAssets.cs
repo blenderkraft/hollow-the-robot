@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using UnityEngine;
 
@@ -54,16 +55,18 @@ namespace HollowTheRobot
 
         public static bool Load(string dir)
         {
-            string json = Path.Combine(dir, "knight.json");
-            string png = Path.Combine(dir, "knight_atlas.png");
-            if (!File.Exists(json) || !File.Exists(png))
+            string meta = Path.Combine(dir, "knight.txt");
+            string raw = Path.Combine(dir, "knight_atlas.rgba");
+            if (!File.Exists(meta) || !File.Exists(raw))
             {
                 Plugin.Log.LogError($"Knight assets missing in {dir}. Run: uv run tools/extract_knight.py");
                 return false;
             }
-            Meta = JsonUtility.FromJson<KnightMeta>(File.ReadAllText(json));
-            var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-            tex.LoadImage(File.ReadAllBytes(png));
+            Meta = Parse(File.ReadAllLines(meta));
+            // Raw RGBA32 rows, bottom-up: Haiku's build has no PNG decoder (ImageConversion is stripped).
+            var tex = new Texture2D(Meta.atlasWidth, Meta.atlasHeight, TextureFormat.RGBA32, false);
+            tex.LoadRawTextureData(File.ReadAllBytes(raw));
+            tex.Apply(false, true);
             tex.filterMode = FilterMode.Point;
             tex.wrapMode = TextureWrapMode.Clamp;
             tex.name = "KnightAtlas";
@@ -84,6 +87,55 @@ namespace HollowTheRobot
             Loaded = true;
             Plugin.Log.LogInfo($"Loaded {Sprites.Length} Knight sprites and {Clips.Count} clips");
             return true;
+        }
+
+        /// <summary>Reads knight.txt (Haiku's build strips JsonUtility, so no JSON here).</summary>
+        private static KnightMeta Parse(string[] lines)
+        {
+            var inv = CultureInfo.InvariantCulture;
+            var m = new KnightMeta();
+            var sprites = new List<SpriteDef>();
+            var clips = new List<ClipDef>();
+            foreach (var line in lines)
+            {
+                if (line.Length < 2) continue;
+                var f = line.Split('\t');
+                switch (f[0])
+                {
+                    case "M":
+                        m.ppu = float.Parse(f[1], inv);
+                        m.scale = float.Parse(f[2], inv);
+                        m.atlasWidth = int.Parse(f[3], inv);
+                        m.atlasHeight = int.Parse(f[4], inv);
+                        break;
+                    case "S":
+                        sprites.Add(new SpriteDef
+                        {
+                            name = f[1], x = int.Parse(f[2], inv), y = int.Parse(f[3], inv),
+                            w = int.Parse(f[4], inv), h = int.Parse(f[5], inv),
+                            px = float.Parse(f[6], inv), py = float.Parse(f[7], inv),
+                        });
+                        break;
+                    case "C":
+                        var events = new List<ClipEvent>();
+                        if (f.Length > 6 && f[6].Length > 0)
+                            foreach (var e in f[6].Split(';'))
+                            {
+                                int colon = e.IndexOf(':');
+                                events.Add(new ClipEvent { frame = int.Parse(e.Substring(0, colon), inv), info = e.Substring(colon + 1) });
+                            }
+                        var frames = f[5].Length == 0 ? new int[0] : Array.ConvertAll(f[5].Split(','), x => int.Parse(x, inv));
+                        clips.Add(new ClipDef
+                        {
+                            name = f[1], fps = float.Parse(f[2], inv), loopStart = int.Parse(f[3], inv),
+                            wrap = f[4], frames = frames, events = events.ToArray(),
+                        });
+                        break;
+                }
+            }
+            m.sprites = sprites.ToArray();
+            m.clips = clips.ToArray();
+            return m;
         }
 
         public static ClipDef Clip(string name)

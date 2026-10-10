@@ -102,7 +102,7 @@ namespace HollowTheRobot
     {
         /// <summary>Spawn a one-shot effect. facing: +1 = HK default (left), -1 = mirrored.</summary>
         public static KAnim Spawn(string clip, Vector3 pos, float facing, Vector2 scale, Transform parent = null,
-            int sortingOrder = 50, int sortingLayer = 0, float speed = 1f)
+            int sortingOrder = 50, int sortingLayer = 0, float speed = 1f, bool persistent = false)
         {
             if (KnightAssets.Clip(clip) == null) return null;
             var go = new GameObject("HTR Fx " + clip);
@@ -115,9 +115,9 @@ namespace HollowTheRobot
             var a = go.AddComponent<KAnim>();
             a.sr = sr;
             a.speed = speed;
-            a.destroyWhenDone = true;
+            a.destroyWhenDone = !persistent;
             a.Play(clip, true);
-            if (a.clip.wrap != "once") UnityEngine.Object.Destroy(go, Mathf.Max(0.2f, a.Duration));
+            if (!persistent && a.clip.wrap != "once") UnityEngine.Object.Destroy(go, Mathf.Max(0.2f, a.Duration));
             return a;
         }
     }

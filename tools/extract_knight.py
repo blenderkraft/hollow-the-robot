@@ -160,6 +160,19 @@ def cut_sprite(atlas: np.ndarray, sd: dict) -> tuple[Image.Image, float, float]:
     return img, -minx * HK_PPU, -miny * HK_PPU
 
 
+# Effects Hollow Knight draws with an additive shader: dark = transparent, bright = glow.
+ADDITIVE = {"Focus/Focus Effect", "Focus/Focus Effect End"}
+
+
+def to_additive(img: Image.Image) -> Image.Image:
+    a = np.asarray(img.convert("RGBA")).astype(np.float32)
+    lum = a[..., :3].max(axis=2) / 255.0
+    out = np.empty_like(a)
+    out[..., :3] = 255
+    out[..., 3] = a[..., 3] * np.clip(lum * 1.4, 0, 1)
+    return Image.fromarray(out.astype(np.uint8), "RGBA")
+
+
 def downsample(img: Image.Image, px: float, py: float, scale: float, hard: bool):
     """Shrink to Haiku's pixel density. Pivot stays at the same spot."""
     # Pad so the pivot lands on an exact pixel boundary after scaling.
@@ -249,10 +262,13 @@ def main():
                     log(f"warning: {cname} frame {fi} references another file; skipped")
                     continue
                 col = cols[ref["m_PathID"]]
-                k = (ref["m_PathID"], f["spriteId"], hard)
+                additive = f"{key}/{cname}" in ADDITIVE
+                k = (ref["m_PathID"], f["spriteId"], hard, additive)
                 if k not in sprite_index:
                     sd = col["spriteDefinitions"][f["spriteId"]]
                     img, px, py = cut_sprite(atlases.get(col), sd)
+                    if additive:
+                        img = to_additive(img)
                     small, spx, spy = downsample(img, px, py, args.scale, hard)
                     sprite_index[k] = len(images)
                     images.append(small)
@@ -272,6 +288,9 @@ def main():
     atlas, rects = pack(images)
     args.out.mkdir(parents=True, exist_ok=True)
     atlas.save(args.out / "knight_atlas.png", optimize=True)
+    # Haiku's build strips Unity's PNG decoder (ImageConversion), so the plugin loads raw RGBA rows, bottom-up.
+    raw = np.asarray(atlas.convert("RGBA"))[::-1].tobytes()
+    (args.out / "knight_atlas.rgba").write_bytes(raw)
     meta = {
         "source": "Extracted from the user's own Hollow Knight install by tools/extract_knight.py",
         "ppu": args.ppu, "scale": args.scale,
@@ -283,6 +302,15 @@ def main():
         "clips": clips_out,
     }
     (args.out / "knight.json").write_text(json.dumps(meta, separators=(",", ":")))
+    # Haiku's build also strips JsonUtility, so the plugin reads this tab-separated twin of knight.json.
+    lines = [f"M\t{args.ppu}\t{args.scale}\t{atlas.width}\t{atlas.height}"]
+    for s_ in meta["sprites"]:
+        lines.append(f"S\t{s_['name']}\t{s_['x']}\t{s_['y']}\t{s_['w']}\t{s_['h']}\t{s_['px']:.3f}\t{s_['py']:.3f}")
+    for c in clips_out:
+        ev = ";".join(f"{e['frame']}:{e['info']}" for e in c["events"])
+        lines.append(f"C\t{c['name']}\t{c['fps']}\t{c['loopStart']}\t{c['wrap']}\t"
+                     f"{','.join(map(str, c['frames']))}\t{ev}")
+    (args.out / "knight.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
     log(f"{len(images)} sprites, {len(clips_out)} clips -> {args.out} (atlas {atlas.width}x{atlas.height})")
 
     if args.preview:

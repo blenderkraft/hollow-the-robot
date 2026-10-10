@@ -8,7 +8,7 @@ namespace HollowTheRobot
     {
         private static void Postfix(PlayerScript __instance)
         {
-            if (!Plugin.KnightEnabled.Value) return;
+            if (!Plugin.KnightEnabled.Value || !Plugin.EnsureAssets()) return;
             if (__instance.GetComponent<KnightController>() == null)
                 __instance.gameObject.AddComponent<KnightController>();
         }

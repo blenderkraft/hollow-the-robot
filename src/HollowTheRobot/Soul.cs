@@ -66,7 +66,7 @@ namespace HollowTheRobot
             if (Time.timeScale == 0f) return; // hide in pause menu
             float u = Screen.height / 216f; // Haiku's pixel scale
             float size = 22f * u * (1f + Soul.GainTimer);
-            var rect = new Rect(8f * u, 22f * u, size, size);
+            var rect = new Rect(7f * u, 50f * u, size, size); // under Haiku's heat dial
 
             // empty vessel
             GUI.color = new Color(0f, 0f, 0f, 0.55f);

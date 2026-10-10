@@ -153,7 +153,7 @@ namespace HollowTheRobot
             if (!Plugin.AirDash.Value || airDashUsed || coll.onGround || ps.isSliding || !CanAct) return;
             var gm = GameManager.instance;
             if (!gm.canDash || gm.canTeleport) return; // with the teleport upgrade Haiku's own blink works in mid-air
-            if (!rw.GetButtonDown("Dash") || ps.isDashing) return;
+            if (!InputHooks.RawDown(rw, "Dash") || ps.isDashing) return;
             if (ManaManager.instance != null && ManaManager.instance.cooldown)
             {
                 ManaManager.instance.OnCooldownFeedback();
@@ -175,7 +175,7 @@ namespace HollowTheRobot
 
         private void UpdateNailCharge()
         {
-            bool held = Plugin.NailArts.Value && rw.GetButton("Attack") && GameManager.instance.canAttack && CanAct
+            bool held = Plugin.NailArts.Value && InputHooks.RawHeld(rw, "Attack") && GameManager.instance.canAttack && CanAct
                         && !InputHooks.Locked;
             if (held)
             {
@@ -190,7 +190,7 @@ namespace HollowTheRobot
             }
             if (charged && CanAct)
             {
-                float v = rw.GetAxisRaw("Move Vertical");
+                float v = InputHooks.RawAxis(rw, "Move Vertical");
                 if (Mathf.Abs(v) > 0.5f) StartCyclone();
                 else if (ps.isDashing || Time.time - lastDashTime < 0.2f) StartDashSlash();
                 else StartGreatSlash();
@@ -220,20 +220,19 @@ namespace HollowTheRobot
         {
             Enter(State.Cyclone, lockInput: true, hover: true);
             PlayBody("NA Cyclone Start", "NA Cyclone");
-            stateFx = AttachFx("Cyclone Effect", new Vector2(0f, -0.363f), new Vector2(1.44f, 1.911f));
-            if (stateFx != null) stateFx.destroyWhenDone = false;
+            stateFx = AttachFx("Cyclone Effect", new Vector2(0f, -0.363f), new Vector2(1.44f, 1.911f), persistent: true);
             nextTick = 0.1f;
         }
 
         // ------------------------------------------------------------------ Spells
 
         /// <summary>Called by InputHooks when Heal is tapped.</summary>
-        public void TryCast()
+        public void TryCast(int pressedDir = 0)
         {
             if (!Plugin.Spells.Value || !CanAct || InputHooks.Locked || Time.timeScale == 0f) return;
-            float v = rw.GetAxisRaw("Move Vertical");
-            bool up = v > 0.5f || rw.GetButton("Attack Up");
-            bool down = v < -0.5f || rw.GetButton("Attack Down");
+            float v = InputHooks.RawAxis(rw, "Move Vertical");
+            bool up = pressedDir > 0 || v > 0.5f || InputHooks.RawHeld(rw, "Attack Up");
+            bool down = !up && (pressedDir < 0 || v < -0.5f || InputHooks.RawHeld(rw, "Attack Down"));
             if (!Soul.Spend(Plugin.SpellCost.Value))
             {
                 ManaManager.instance?.OnCooldownFeedback();
@@ -344,8 +343,7 @@ namespace HollowTheRobot
                         state = State.DiveFall;
                         stateTime = 0f;
                         PlayBody("Quake Fall");
-                        stateFx = AttachFx("Spell/Quake Dash", Vector2.zero, Vector2.one);
-                        if (stateFx != null) stateFx.destroyWhenDone = false;
+                        stateFx = AttachFx("Spell/Quake Dash", Vector2.zero, Vector2.one, persistent: true);
                     }
                     break;
 
@@ -435,7 +433,7 @@ namespace HollowTheRobot
                     rb.velocity = stateTime < 0.18f ? new Vector2(Forward * 22f, 0f) : Vector2.zero;
                     break;
                 case State.Cyclone:
-                    rb.velocity = new Vector2(rw.GetAxisRaw("Move Horizontal") * 4.5f, Mathf.Max(rb.velocity.y, -1.5f));
+                    rb.velocity = new Vector2(InputHooks.RawAxis(rw, "Move Horizontal") * 4.5f, Mathf.Max(rb.velocity.y, -1.5f));
                     break;
             }
         }
@@ -510,9 +508,9 @@ namespace HollowTheRobot
             kanim.Play(clip, true);
         }
 
-        private KAnim AttachFx(string clip, Vector2 hkOffset, Vector2 hkScale)
+        private KAnim AttachFx(string clip, Vector2 hkOffset, Vector2 hkScale, bool persistent = false)
         {
-            var a = Fx.Spawn(clip, Vector3.zero, 1f, hkScale, fxRoot, ksr.sortingOrder + 1, SortingLayer);
+            var a = Fx.Spawn(clip, Vector3.zero, 1f, hkScale, fxRoot, ksr.sortingOrder + 1, SortingLayer, 1f, persistent);
             if (a != null) a.transform.localPosition = new Vector3(hkOffset.x * U, hkOffset.y * U, 0f);
             return a;
         }
@@ -569,8 +567,8 @@ namespace HollowTheRobot
             bool focusing = ps.isHealing && ksr.enabled;
             if (focusing && focusFx == null)
             {
-                focusFx = Fx.Spawn("Focus/Focus Effect", knight.transform.position, 1f, Vector2.one, knight.transform, ksr.sortingOrder + 1, SortingLayer);
-                if (focusFx != null) focusFx.destroyWhenDone = false;
+                focusFx = Fx.Spawn("Focus/Focus Effect", knight.transform.position, 1f, Vector2.one, knight.transform,
+                    ksr.sortingOrder + 1, SortingLayer, 1f, persistent: true);
             }
             else if (!focusing && focusFx != null)
             {
@@ -654,11 +652,28 @@ namespace HollowTheRobot
             }
             else
             {
-                float x = rw.GetAxisRaw("Move Horizontal");
+                float x = InputHooks.RawAxis(rw, "Move Horizontal");
                 clip = Mathf.Abs(x) > 0.2f && Mathf.Abs(rb.velocity.x) > 0.5f && !InputHooks.Locked ? "Run" : "Idle";
             }
             kanim.Play(clip);
         }
+
+        public void LogDiagnostics()
+        {
+            var cam = Camera.main;
+            Plugin.Log.LogInfo($"diag: player lossy={transform.lossyScale} knight lossy={knight.transform.lossyScale} " +
+                $"haikuSr bounds={haikuSr.bounds.size} sprite={(haikuSr.sprite ? haikuSr.sprite.name + " ppu " + haikuSr.sprite.pixelsPerUnit : "-")} " +
+                $"knight bounds={ksr.bounds.size} sprite={(ksr.sprite ? ksr.sprite.name + " ppu " + ksr.sprite.pixelsPerUnit + " rect " + ksr.sprite.rect : "-")} " +
+                $"cam ortho={(cam ? cam.orthographicSize : -1)} haikuSr parent lossy={haikuSr.transform.lossyScale} order={haikuSr.sortingLayerName}/{haikuSr.sortingOrder}");
+            foreach (Transform t in fxRoot)
+            {
+                var r = t.GetComponent<SpriteRenderer>();
+                Plugin.Log.LogInfo($"diag fx: {t.name} active={t.gameObject.activeInHierarchy} sprite={(r && r.sprite ? r.sprite.name : "-")} " +
+                    $"enabled={(r ? r.enabled : false)} pos={t.position} scale={t.lossyScale} order={(r ? r.sortingOrder : 0)} color={(r ? r.color : Color.clear)}");
+            }
+        }
+
+        private void OnGUI() { KnightControllerDebug.Clip = kanim != null ? kanim.Current : null; }
     }
 
     /// <summary>The Vengeful Spirit projectile.</summary>
@@ -681,7 +696,7 @@ namespace HollowTheRobot
             var a = gameObject.AddComponent<KAnim>();
             a.sr = sr;
             a.Play("Spell/Ball", true);
-            transform.localScale = new Vector3(dir > 0 ? -1f : 1f, 1f, 1f);
+            transform.localScale = new Vector3(dir > 0 ? 1f : -1f, 1f, 1f); // the spirit's face leads
         }
 
         private void Update()

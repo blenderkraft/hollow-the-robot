@@ -16,6 +16,25 @@ namespace HollowTheRobot
 
         internal static ManualLogSource Log;
         internal static Plugin Instance;
+        internal static string AssetDir;
+        private static bool loadTried;
+
+        /// <summary>Loads the Knight's art on first use (Unity isn't ready for textures during Plugin.Awake).</summary>
+        public static bool EnsureAssets()
+        {
+            if (KnightAssets.Loaded) return true;
+            if (loadTried) return false;
+            loadTried = true;
+            try
+            {
+                return KnightAssets.Load(AssetDir);
+            }
+            catch (System.Exception e)
+            {
+                Log.LogError("Failed to load Knight art: " + e);
+                return false;
+            }
+        }
 
         public static ConfigEntry<bool> KnightEnabled;
         public static ConfigEntry<bool> AirDash;
@@ -55,15 +74,16 @@ namespace HollowTheRobot
             NailArtDamage = Config.Bind("Tuning", "Nail Art Damage Multiplier", 2.5f, "Great/Dash Slash damage as a multiple of a sword hit.");
             ShowSoulHud = Config.Bind("HUD", "Show Soul Vessel", true, "Draw the Soul vessel under Haiku's health bar.");
 
-            string dir = Path.Combine(Path.GetDirectoryName(Info.Location), "knight");
-            if (!KnightAssets.Load(dir))
+            AssetDir = Path.Combine(Path.GetDirectoryName(Info.Location), "knight");
+            if (!File.Exists(Path.Combine(AssetDir, "knight.txt")))
             {
-                Log.LogError("Hollow the Robot is disabled until the Knight's art is extracted.");
+                Log.LogError($"Knight art not found in {AssetDir}. Run: uv run tools/extract_knight.py");
                 return;
             }
 
             var h = new Harmony(Guid);
             h.PatchAll(typeof(Plugin).Assembly);
+            Autopilot.Install(Path.GetDirectoryName(Info.Location));
             Log.LogInfo($"{Name} {Version} loaded. Arise, little Knight.");
         }
     }
