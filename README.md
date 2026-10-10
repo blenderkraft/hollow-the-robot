@@ -7,6 +7,13 @@ his own animations, nail arcs, Soul, spells and Nail Arts with him. It's a BepIn
 Knight's art is pulled out of **your own Hollow Knight install** when you set the mod up, and none of it is
 included in this repo.
 
+| | |
+|---|---|
+| ![The Knight dashing through Haiku's world](docs/screenshots/dash.png) | ![Fighting Haiku's robots](docs/screenshots/combat.png) |
+| ![Monarch Wings double jump](docs/screenshots/double-jump.png) | ![Nail slash, with the Soul vessel filling top-left](docs/screenshots/slash.png) |
+
+Demo clip (16 s): [docs/video/hollow-the-robot-demo-1.mp4](docs/video/hollow-the-robot-demo-1.mp4)
+
 ## Controls (Haiku's buttons, Hollow Knight's moves)
 
 | Hollow Knight | How | Notes |
